@@ -6576,41 +6576,48 @@ pub fn recvfrom(
     src_addr: ?*sockaddr,
     addrlen: ?*socklen_t,
 ) RecvFromError!usize {
+    if (native_os == .windows) {
+        const rc = windows.ws2_32.recvfrom(
+            sockfd,
+            buf.ptr,
+            buf.len,
+            flags,
+            src_addr,
+            addrlen,
+        );
+        if (rc == windows.ws2_32.SOCKET_ERROR) {
+            return switch (windows.ws2_32.WSAGetLastError()) {
+                .WSANOTINITIALISED => unreachable,
+                .WSAECONNRESET => error.ConnectionResetByPeer,
+                .WSAEINVAL => error.SocketNotBound,
+                .WSAEMSGSIZE => error.MessageTooBig,
+                .WSAENETDOWN => error.NetworkSubsystemFailed,
+                .WSAENOTCONN => error.SocketNotConnected,
+                .WSAEWOULDBLOCK => error.WouldBlock,
+                .WSAETIMEDOUT => error.ConnectionTimedOut,
+                // TODO: handle more errors
+                else => |err| windows.unexpectedWSAError(err),
+            };
+        } else {
+            return @intCast(rc);
+        }
+    }
     while (true) {
         const rc = system.recvfrom(sockfd, buf.ptr, buf.len, flags, src_addr, addrlen);
-        if (native_os == .windows) {
-            if (rc == windows.ws2_32.SOCKET_ERROR) {
-                switch (windows.ws2_32.WSAGetLastError()) {
-                    .WSANOTINITIALISED => unreachable,
-                    .WSAECONNRESET => return error.ConnectionResetByPeer,
-                    .WSAEINVAL => return error.SocketNotBound,
-                    .WSAEMSGSIZE => return error.MessageTooBig,
-                    .WSAENETDOWN => return error.NetworkSubsystemFailed,
-                    .WSAENOTCONN => return error.SocketNotConnected,
-                    .WSAEWOULDBLOCK => return error.WouldBlock,
-                    .WSAETIMEDOUT => return error.ConnectionTimedOut,
-                    // TODO: handle more errors
-                    else => |err| return windows.unexpectedWSAError(err),
-                }
-            } else {
-                return @intCast(rc);
-            }
-        } else {
-            switch (errno(rc)) {
-                .SUCCESS => return @intCast(rc),
-                .BADF => unreachable, // always a race condition
-                .FAULT => unreachable,
-                .INVAL => unreachable,
-                .NOTCONN => return error.SocketNotConnected,
-                .NOTSOCK => unreachable,
-                .INTR => continue,
-                .AGAIN => return error.WouldBlock,
-                .NOMEM => return error.SystemResources,
-                .CONNREFUSED => return error.ConnectionRefused,
-                .CONNRESET => return error.ConnectionResetByPeer,
-                .TIMEDOUT => return error.ConnectionTimedOut,
-                else => |err| return unexpectedErrno(err),
-            }
+        switch (errno(rc)) {
+            .SUCCESS => return @intCast(rc),
+            .BADF => unreachable, // always a race condition
+            .FAULT => unreachable,
+            .INVAL => unreachable,
+            .NOTCONN => return error.SocketNotConnected,
+            .NOTSOCK => unreachable,
+            .INTR => continue,
+            .AGAIN => return error.WouldBlock,
+            .NOMEM => return error.SystemResources,
+            .CONNREFUSED => return error.ConnectionRefused,
+            .CONNRESET => return error.ConnectionResetByPeer,
+            .TIMEDOUT => return error.ConnectionTimedOut,
+            else => |err| return unexpectedErrno(err),
         }
     }
 }
