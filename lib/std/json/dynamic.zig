@@ -31,16 +31,16 @@ pub const Value = union(enum) {
         if (!isNumberFormattedLikeAnInteger(s)) {
             const f = std.fmt.parseFloat(f64, s) catch unreachable;
             if (std.math.isFinite(f)) {
-                return Value{ .float = f };
+                return .{ .float = f };
             } else {
-                return Value{ .number_string = s };
+                return .{ .number_string = s };
             }
         }
         if (std.fmt.parseInt(i64, s, 10)) |i| {
-            return Value{ .integer = i };
+            return .{ .integer = i };
         } else |e| {
             switch (e) {
-                error.Overflow => return Value{ .number_string = s },
+                error.Overflow => return .{ .number_string = s },
                 error.InvalidCharacter => unreachable,
             }
         }
@@ -88,34 +88,40 @@ pub const Value = union(enum) {
 
             switch (try source.nextAllocMax(allocator, .alloc_always, options.max_value_len.?)) {
                 .allocated_string => |s| {
-                    return try handleCompleteValue(&stack, allocator, source, Value{ .string = s }, options) orelse continue;
+                    return try handleCompleteValue(&stack, allocator, source, .{ .string = s }, options) orelse continue;
                 },
                 .allocated_number => |slice| {
                     if (options.parse_numbers) {
-                        return try handleCompleteValue(&stack, allocator, source, Value.parseFromNumberSlice(slice), options) orelse continue;
+                        return try handleCompleteValue(&stack, allocator, source, .parseFromNumberSlice(slice), options) orelse continue;
                     } else {
-                        return try handleCompleteValue(&stack, allocator, source, Value{ .number_string = slice }, options) orelse continue;
+                        return try handleCompleteValue(&stack, allocator, source, .{ .number_string = slice }, options) orelse continue;
                     }
                 },
 
                 .null => return try handleCompleteValue(&stack, allocator, source, .null, options) orelse continue,
-                .true => return try handleCompleteValue(&stack, allocator, source, Value{ .bool = true }, options) orelse continue,
-                .false => return try handleCompleteValue(&stack, allocator, source, Value{ .bool = false }, options) orelse continue,
+                .true => return try handleCompleteValue(&stack, allocator, source, .{ .bool = true }, options) orelse continue,
+                .false => return try handleCompleteValue(&stack, allocator, source, .{ .bool = false }, options) orelse continue,
 
                 .object_begin => {
                     switch (try source.nextAllocMax(allocator, .alloc_always, options.max_value_len.?)) {
-                        .object_end => return try handleCompleteValue(&stack, allocator, source, Value{ .object = ObjectMap.init(allocator) }, options) orelse continue,
+                        .object_end => return try handleCompleteValue(
+                            &stack,
+                            allocator,
+                            source,
+                            .{ .object = .init(allocator) },
+                            options,
+                        ) orelse continue,
                         .allocated_string => |key| {
                             try stack.appendSlice(&[_]Value{
-                                Value{ .object = ObjectMap.init(allocator) },
-                                Value{ .string = key },
+                                .{ .object = .init(allocator) },
+                                .{ .string = key },
                             });
                         },
                         else => unreachable,
                     }
                 },
                 .array_begin => {
-                    try stack.append(Value{ .array = Array.init(allocator) });
+                    try stack.append(.{ .array = .init(allocator) });
                 },
                 .array_end => return try handleCompleteValue(&stack, allocator, source, stack.pop().?, options) orelse continue,
 
@@ -171,7 +177,7 @@ fn handleCompleteValue(stack: *Array, allocator: Allocator, source: anytype, val
                     },
                     .allocated_string => |next_key| {
                         // We've got another key.
-                        try stack.append(Value{ .string = next_key });
+                        try stack.append(.{ .string = next_key });
                         // stack: [..., .object, .string]
                         return null;
                     },

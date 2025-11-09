@@ -135,7 +135,7 @@ pub fn nextAllocMax(self: *@This(), allocator: Allocator, when: AllocWhen, max_v
     };
     switch (token_type) {
         .number, .string => {
-            var value_list = std.array_list.Managed(u8).init(allocator);
+            var value_list: std.array_list.Managed(u8) = .init(allocator);
             errdefer {
                 value_list.deinit();
             }
@@ -144,14 +144,14 @@ pub fn nextAllocMax(self: *@This(), allocator: Allocator, when: AllocWhen, max_v
                 else => |err| return err,
             }) |slice| {
                 return if (token_type == .number)
-                    Token{ .number = slice }
+                    .{ .number = slice }
                 else
-                    Token{ .string = slice };
+                    .{ .string = slice };
             } else {
                 return if (token_type == .number)
-                    Token{ .allocated_number = try value_list.toOwnedSlice() }
+                    .{ .allocated_number = try value_list.toOwnedSlice() }
                 else
-                    Token{ .allocated_string = try value_list.toOwnedSlice() };
+                    .{ .allocated_string = try value_list.toOwnedSlice() };
             }
         },
 
@@ -508,7 +508,7 @@ pub fn next(self: *@This()) NextError!Token {
                     },
                     else => {
                         self.state = .post_value;
-                        return Token{ .number = self.takeValueSlice() };
+                        return .{ .number = self.takeValueSlice() };
                     },
                 }
             },
@@ -528,7 +528,7 @@ pub fn next(self: *@This()) NextError!Token {
                         },
                         else => {
                             self.state = .post_value;
-                            return Token{ .number = self.takeValueSlice() };
+                            return .{ .number = self.takeValueSlice() };
                         },
                     }
                 }
@@ -556,7 +556,7 @@ pub fn next(self: *@This()) NextError!Token {
                         },
                         else => {
                             self.state = .post_value;
-                            return Token{ .number = self.takeValueSlice() };
+                            return .{ .number = self.takeValueSlice() };
                         },
                     }
                 }
@@ -595,7 +595,7 @@ pub fn next(self: *@This()) NextError!Token {
                         '0'...'9' => continue,
                         else => {
                             self.state = .post_value;
-                            return Token{ .number = self.takeValueSlice() };
+                            return .{ .number = self.takeValueSlice() };
                         },
                     }
                 }
@@ -612,7 +612,7 @@ pub fn next(self: *@This()) NextError!Token {
 
                         // Special characters.
                         '"' => {
-                            const result = Token{ .string = self.takeValueSlice() };
+                            const result: Token = .{ .string = self.takeValueSlice() };
                             self.cursor += 1;
                             self.state = .post_value;
                             return result;
@@ -621,7 +621,7 @@ pub fn next(self: *@This()) NextError!Token {
                             const slice = self.takeValueSlice();
                             self.cursor += 1;
                             self.state = .string_backslash;
-                            if (slice.len > 0) return Token{ .partial_string = slice };
+                            if (slice.len > 0) return .{ .partial_string = slice };
                             continue :state_loop;
                         },
 
@@ -667,7 +667,7 @@ pub fn next(self: *@This()) NextError!Token {
                 }
                 if (self.is_end_of_input) return error.UnexpectedEndOfInput;
                 const slice = self.takeValueSlice();
-                if (slice.len > 0) return Token{ .partial_string = slice };
+                if (slice.len > 0) return .{ .partial_string = slice };
                 return error.BufferUnderrun;
             },
             .string_backslash => {
@@ -685,31 +685,31 @@ pub fn next(self: *@This()) NextError!Token {
                         self.cursor += 1;
                         self.value_start = self.cursor;
                         self.state = .string;
-                        return Token{ .partial_string_escaped_1 = [_]u8{0x08} };
+                        return .{ .partial_string_escaped_1 = [_]u8{0x08} };
                     },
                     'f' => {
                         self.cursor += 1;
                         self.value_start = self.cursor;
                         self.state = .string;
-                        return Token{ .partial_string_escaped_1 = [_]u8{0x0c} };
+                        return .{ .partial_string_escaped_1 = [_]u8{0x0c} };
                     },
                     'n' => {
                         self.cursor += 1;
                         self.value_start = self.cursor;
                         self.state = .string;
-                        return Token{ .partial_string_escaped_1 = [_]u8{'\n'} };
+                        return .{ .partial_string_escaped_1 = [_]u8{'\n'} };
                     },
                     'r' => {
                         self.cursor += 1;
                         self.value_start = self.cursor;
                         self.state = .string;
-                        return Token{ .partial_string_escaped_1 = [_]u8{'\r'} };
+                        return .{ .partial_string_escaped_1 = [_]u8{'\r'} };
                     },
                     't' => {
                         self.cursor += 1;
                         self.value_start = self.cursor;
                         self.state = .string;
-                        return Token{ .partial_string_escaped_1 = [_]u8{'\t'} };
+                        return .{ .partial_string_escaped_1 = [_]u8{'\t'} };
                     },
                     'u' => {
                         self.cursor += 1;
@@ -1340,10 +1340,10 @@ fn endOfBufferInNumber(self: *@This(), allow_end: bool) !Token {
     if (self.is_end_of_input) {
         if (!allow_end) return error.UnexpectedEndOfInput;
         self.state = .post_value;
-        return Token{ .number = slice };
+        return .{ .number = slice };
     }
     if (slice.len == 0) return error.BufferUnderrun;
-    return Token{ .partial_number = slice };
+    return .{ .partial_number = slice };
 }
 
 fn endOfBufferInString(self: *@This()) !Token {
@@ -1376,16 +1376,16 @@ fn endOfBufferInString(self: *@This()) !Token {
         else => unreachable,
     });
     if (slice.len == 0) return error.BufferUnderrun;
-    return Token{ .partial_string = slice };
+    return .{ .partial_string = slice };
 }
 
 fn partialStringCodepoint(code_point: u21) Token {
     var buf: [4]u8 = undefined;
     switch (std.unicode.utf8Encode(code_point, &buf) catch unreachable) {
-        1 => return Token{ .partial_string_escaped_1 = buf[0..1].* },
-        2 => return Token{ .partial_string_escaped_2 = buf[0..2].* },
-        3 => return Token{ .partial_string_escaped_3 = buf[0..3].* },
-        4 => return Token{ .partial_string_escaped_4 = buf[0..4].* },
+        1 => return .{ .partial_string_escaped_1 = buf[0..1].* },
+        2 => return .{ .partial_string_escaped_2 = buf[0..2].* },
+        3 => return .{ .partial_string_escaped_3 = buf[0..3].* },
+        4 => return .{ .partial_string_escaped_4 = buf[0..4].* },
         else => unreachable,
     }
 }
@@ -1607,20 +1607,20 @@ pub const Reader = struct {
         const token_type = try self.peekNextTokenType();
         switch (token_type) {
             .number, .string => {
-                var value_list = std.array_list.Managed(u8).init(allocator);
+                var value_list: std.array_list.Managed(u8) = .init(allocator);
                 errdefer {
                     value_list.deinit();
                 }
                 if (try self.allocNextIntoArrayListMax(&value_list, when, max_value_len)) |slice| {
                     return if (token_type == .number)
-                        Token{ .number = slice }
+                        .{ .number = slice }
                     else
-                        Token{ .string = slice };
+                        .{ .string = slice };
                 } else {
                     return if (token_type == .number)
-                        Token{ .allocated_number = try value_list.toOwnedSlice() }
+                        .{ .allocated_number = try value_list.toOwnedSlice() }
                     else
-                        Token{ .allocated_string = try value_list.toOwnedSlice() };
+                        .{ .allocated_string = try value_list.toOwnedSlice() };
                 }
             },
 

@@ -76,7 +76,7 @@ pub fn parseFromSlice(
     s: []const u8,
     options: ParseOptions,
 ) ParseError(Scanner)!Parsed(T) {
-    var scanner = Scanner.initCompleteInput(allocator, s);
+    var scanner: Scanner = .initCompleteInput(allocator, s);
     defer scanner.deinit();
 
     return parseFromTokenSource(T, allocator, &scanner, options);
@@ -91,7 +91,7 @@ pub fn parseFromSliceLeaky(
     s: []const u8,
     options: ParseOptions,
 ) ParseError(Scanner)!T {
-    var scanner = Scanner.initCompleteInput(allocator, s);
+    var scanner: Scanner = .initCompleteInput(allocator, s);
     defer scanner.deinit();
 
     return parseFromTokenSourceLeaky(T, allocator, &scanner, options);
@@ -105,12 +105,12 @@ pub fn parseFromTokenSource(
     scanner_or_reader: anytype,
     options: ParseOptions,
 ) ParseError(@TypeOf(scanner_or_reader.*))!Parsed(T) {
-    var parsed = Parsed(T){
+    var parsed: Parsed(T) = .{
         .arena = try allocator.create(ArenaAllocator),
         .value = undefined,
     };
     errdefer allocator.destroy(parsed.arena);
-    parsed.arena.* = ArenaAllocator.init(allocator);
+    parsed.arena.* = .init(allocator);
     errdefer parsed.arena.deinit();
 
     parsed.value = try parseFromTokenSourceLeaky(T, parsed.arena.allocator(), scanner_or_reader, options);
@@ -161,12 +161,12 @@ pub fn parseFromValue(
     source: Value,
     options: ParseOptions,
 ) ParseFromValueError!Parsed(T) {
-    var parsed = Parsed(T){
+    var parsed: Parsed(T) = .{
         .arena = try allocator.create(ArenaAllocator),
         .value = undefined,
     };
     errdefer allocator.destroy(parsed.arena);
-    parsed.arena.* = ArenaAllocator.init(allocator);
+    parsed.arena.* = .init(allocator);
     errdefer parsed.arena.deinit();
 
     parsed.value = try parseFromValueLeaky(T, parsed.arena.allocator(), source, options);
@@ -463,7 +463,7 @@ pub fn innerParse(
                             _ = try source.next();
 
                             // Typical array.
-                            var arraylist = ArrayList(ptrInfo.child).init(allocator);
+                            var arraylist: ArrayList(ptrInfo.child) = .init(allocator);
                             while (true) {
                                 switch (try source.peekNextTokenType()) {
                                     .array_end => {
@@ -489,7 +489,7 @@ pub fn innerParse(
                             // Dynamic length string.
                             if (ptrInfo.sentinel()) |s| {
                                 // Use our own array list so we can append the sentinel.
-                                var value_list = ArrayList(u8).init(allocator);
+                                var value_list: ArrayList(u8) = .init(allocator);
                                 _ = try source.allocNextIntoArrayList(&value_list, .alloc_always);
                                 return try value_list.toOwnedSliceSentinel(s);
                             }

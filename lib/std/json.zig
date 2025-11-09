@@ -14,7 +14,7 @@ const std = @import("std");
 const testing = std.testing;
 
 test Scanner {
-    var scanner = Scanner.initCompleteInput(testing.allocator, "{\"foo\": 123}\n");
+    var scanner: Scanner = .initCompleteInput(testing.allocator, "{\"foo\": 123}\n");
     defer scanner.deinit();
     try testing.expectEqual(Token.object_begin, try scanner.next());
     try testing.expectEqualSlices(u8, "foo", (try scanner.next()).string);
